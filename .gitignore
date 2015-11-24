@@ -1,5 +1,4 @@
 *.jpg
-models/
 build/
 Lib/unittest-cpp/builds/
 *.dat
