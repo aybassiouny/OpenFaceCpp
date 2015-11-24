@@ -13,5 +13,5 @@ add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
 
 TARGET_LINK_LIBRARIES(OpenFaceCpp dlib)
-TARGET_LINK_LIBRARIES(OpenFaceCpp unittest-cpp)
+TARGET_LINK_LIBRARIES(OpenFaceCpp UnitTest++)
 target_link_libraries( OpenFaceCpp ${OpenCV_LIBS} )

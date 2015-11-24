@@ -7,7 +7,9 @@ We utilize all their dependencies: dlib, torch and OpenCV, besides a minimal tes
 Up to this point (check below) the system if up and running over Ubuntu, CentOS and Windows. It's expected for windows to fall back later on due to the torch dependency - but someone maybe could make their unofficial release work. 
 
 # Install
-Run install.sh. For the resulting executable to run, you need to download models first from: and place it in same folder with executable. 
+For Linux, run install.sh. For the resulting executable to run, you need to download models first from: and place it in same folder with executable. 
+
+For Windows, first cmake Lib/Unittest++, build it, then cmake the root directory. 
 
 # Todo list
 - Face detection and alignment ✔
