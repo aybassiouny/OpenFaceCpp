@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 2.8)
 project( OpenFaceCpp )
 find_package( OpenCV REQUIRED )
 
-include(/home/aybassiouny/Desktop/OpenFaceCpp/Lib/dlib-18.18/dlib/cmake/)
+include(${CMAKE_CURRENT_SOURCE_DIR}/Lib/dlib-18.18/dlib/cmake/)
 #find_package(unittest-cpp REQUIRED)
-include_directories(/home/aybassiouny/Desktop/OpenFaceCpp/Lib/unittest-cpp/)
-link_directories(/home/aybassiouny/Desktop/OpenFaceCpp/Lib/unittest-cpp/builds/)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/builds/)
 add_executable( OpenFaceCpp NativeDLib.cpp )
 
 SET(GCC_COVERAGE_COMPILE_FLAGS "-fdiagnostics-color -std=c++11")
