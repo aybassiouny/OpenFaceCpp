@@ -1,2 +1,17 @@
-make clean
-make
+rm ./OpenFaceCpp
+cd Lib/unittest-cpp/
+rm -rf builds
+mkdir builds
+cd builds
+cmake -G "Unix Makefiles" ../
+cmake -DCMAKE_BUILD_TYPE=Release --build ./
+make -j12
+cd ../../..
+rm -rf build
+mkdir build
+cd build
+cmake  -DCMAKE_BUILD_TYPE=Release ..
+make -j12
+mv OpenFaceCpp ../
+cd ..
+./OpenFaceCpp

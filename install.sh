@@ -1,14 +1,17 @@
+rm ./OpenFaceCpp
 cd Lib/unittest-cpp/
 rm -rf builds
 mkdir builds
 cd builds
 cmake -G "Unix Makefiles" ../
-cmake --build ./
+cmake -DCMAKE_BUILD_TYPE=Release --build ./
+make -j12
 cd ../../..
 rm -rf build
 mkdir build
 cd build
-cmake ..
-make
+cmake  -DCMAKE_BUILD_TYPE=Release -DUSE_AVX_INSTRUCTIONS=ON ..
+make -j12
 mv OpenFaceCpp ../
 cd ..
+./OpenFaceCpp
