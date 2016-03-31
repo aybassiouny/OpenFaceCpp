@@ -15,4 +15,6 @@ CMakeScripts
 Makefile
 cmake_install.cmake
 install_manifest.txt
+representation.txt
 OpenFaceCpp
+run_tests

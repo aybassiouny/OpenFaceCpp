@@ -35,17 +35,14 @@ bp::child TorchWrap::initChild()
 	std::cout<<"Launching "<<exec<<std::endl;
 	return bp::launch_shell(exec, ctx);
 }
-	
-std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
+
+std::vector<double> TorchWrap::forwardImage(std::string imgPath)
 {
-	//std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim);    
-	//std::cout<<"Launching "<<exec<<std::endl;
-	//bp::child c =  bp::launch_shell(exec, ctx);
+	std::string exec = "th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim);    
+	std::cout<<"Launching "<<exec<<std::endl;
+	
 	std::vector<double> imgRep;
 	std::cout<<"listening ..."<<std::endl;
-	bp::pistream &is = c.get_stdout(); 
-    bp::postream &pout = c.get_stdin();
-    TimePoint t1 = steady_clock::now();
     std::ofstream out(repFileName);
     
 	//std::string cmd = "th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim)+" -imgPath "+imgPath;
@@ -58,16 +55,14 @@ std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
 	//char buffer[128];
     std::string imgRepStr = "";
     //std::cout<<"sending ..."<<imgPath<<std::endl;
-    pout<<imgPath<<endl;
     //std::cout<<"receiving ..."<<std::endl;
-	std::getline(is, imgRepStr);
 	//std::cout<<"Received imgRepStr of length "<<imgRepStr.size()<<std::endl;
     // cout<<"before pipe: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
     // while (!feof(pipe.get())) {
     //     if (fgets(buffer, 128, pipe.get()) != NULL)
     //         imgRepStr += buffer;
     // }
-    cout<<"after pipe: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
+    //cout<<"after pipe: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
     int curPos = 0;
     auto pos = imgRepStr.find(",", curPos);
     while(pos!=std::string::npos){
@@ -77,6 +72,30 @@ std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
         curPos = pos+1; 
         pos = imgRepStr.find(",", curPos);
     }
-    cout<<"str manip: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
+    return imgRep;
+}
+	
+std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
+{
+	std::vector<double> imgRep;
+	std::cout<<"listening ..."<<std::endl;
+	bp::pistream &is = c.get_stdout(); 
+    bp::postream &pout = c.get_stdin();
+    std::ofstream out(repFileName);
+    
+    std::string imgRepStr = "";
+    std::cout<<"sending ..."<<imgPath<<std::endl;
+    pout<<imgPath<<endl;
+    std::cout<<"receiving ..."<<std::endl;
+	std::getline(is, imgRepStr);
+    int curPos = 0;
+    auto pos = imgRepStr.find(",", curPos);
+    while(pos!=std::string::npos){
+        std::string substr = imgRepStr.substr(curPos, pos - curPos);
+        out<<substr<<std::endl;
+        imgRep.emplace_back(stod(substr));
+        curPos = pos+1; 
+        pos = imgRepStr.find(",", curPos);
+    }
     return imgRep;
 }

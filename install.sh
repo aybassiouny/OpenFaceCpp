@@ -13,5 +13,5 @@ cd build
 cmake  -DCMAKE_BUILD_TYPE=Release -DUSE_AVX_INSTRUCTIONS=ON ..
 make -j12
 mv OpenFaceCpp ../
+mv run_tests ../
 cd ..
-./OpenFaceCpp

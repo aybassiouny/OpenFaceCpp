@@ -24,6 +24,7 @@ class TorchWrap{
 public:
 	TorchWrap();
 	TorchWrap(std::string inModelPath, int inImgDim, std::string inRepFileName);	
+	std::vector<double> 	forwardImage(std::string imgPath);
 	std::vector<double> 	forwardImage(std::string imgPath, bp::child& c);
 	bp::child initChild();
 	//boost::optional<bp::child> c;

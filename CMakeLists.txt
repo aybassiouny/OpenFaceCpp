@@ -24,9 +24,11 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/Lib/dlib-18.18/dlib/cmake/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Lib/ ${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Lib ${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/builds/)
 
-add_executable(OpenFaceCpp src/simClassification.cpp src/NativeDLib.cpp src/TorchWrap.cpp )
+add_executable(OpenFaceCpp src/main.cpp src/NativeDLib.cpp src/TorchWrap.cpp )
 TARGET_LINK_LIBRARIES(OpenFaceCpp dlib svmlib UnitTest++ lapack blas ${OpenCV_LIBS} ${Boost_LIBRARIES} ${Boost_SYSTEM_LIBRARY})
 
+add_executable(run_tests src/run_tests.cpp src/NativeDLib.cpp src/TorchWrap.cpp )
+TARGET_LINK_LIBRARIES(run_tests dlib svmlib UnitTest++ lapack blas ${OpenCV_LIBS} ${Boost_LIBRARIES} ${Boost_SYSTEM_LIBRARY})
 #add_executable( OpenFaceCppApp simClassification.cpp svm.cpp NativeDLib.cpp TorchWrap.cpp )
 #find_package(unittest-cpp REQUIRED)
 
