@@ -1,3 +1,6 @@
 [submodule "Lib/dlib-18.18"]
 	path = Lib/dlib-18.18
 	url = https://github.com/davisking/dlib.git
+[submodule "Lib/unittest-cpp"]
+	path = Lib/unittest-cpp
+	url = https://github.com/unittest-cpp/unittest-cpp.git
