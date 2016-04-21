@@ -15,5 +15,6 @@ For Windows, first cmake Lib/Unittest++, build it, then cmake the root directory
 
 # Todo list
 - Face detection and alignment ✔
-- Euclidean face representation 
-- Integration into Face Recognitino sample 
+- Euclidean face representation ✔ 
+- Integration into Face Recognitino sample ✔
+- sync with latest OpenFace V0.2.0
