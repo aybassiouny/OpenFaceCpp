@@ -1,22 +1,25 @@
-#include "opencv2/opencv.hpp"
 #include "NativeDLib.h"
 #include "TorchWrap.h"
 
-using namespace cv;
-namespace bp = ::boost::process; 
+#include "opencv2/opencv.hpp"
+#include <dlib/image_io.h>
+
+
+using namespace OpenFaceCpp;
 using std::cout;
 using std::endl;
 
-NativeDLib align;
+std::vector<double>  GetImgRep(NativeDLib& align, const std::string& imgName, TorchWrap& tw, const boost::process::child& c)
+{
+    cv::Mat src = cv::imread(imgName,1); 
+    DlibImage img;
+    dlib::assign_image(img, dlib::cv_image<dlib::bgr_pixel>(src));
+    dlib::rectangle face = align.GetLargestFaceBoundingBox(img);
+    cv::Mat alignedFace = align.AlignImg(96, img, face, "blabla");
 
-vector<double>  getImgRep(string imgName, TorchWrap tw, bp::child& c){
-	cv::Mat src = cv::imread(imgName,1); 
-	Image img;
-	dlib::assign_image(img, dlib::cv_image<dlib::bgr_pixel>(src));
-    BoundingBox face = align.getLargestFaceBoundingBox(img);
-    Mat alignedFace = align.alignImg("affine", 96, img, face, "blabla");
-    cv::imwrite("temp_aligned.jpg", alignedFace);
-    auto ans = tw.forwardImage("temp_aligned.jpg", std::forward<decltype(c)>(c));
+    std::string inputImgName = "temp_aligned.jpg";
+    cv::imwrite(inputImgName, alignedFace);
+    auto ans = tw.ForwardImage(inputImgName, c);
     return ans;
 }
 
@@ -27,11 +30,11 @@ int main(int argc, const char *argv[] )
         std::cout<<"Please provide input image"<<std::endl;
         return 0;
     }
-	
-	std::string imgName = argv[1];
-    align.init("models/dlib/mean.csv", "shape_predictor_68_face_landmarks.dat");
-    TorchWrap tw("models/openface/nn4.small2.v1", 96, "representation.txt");
-	bp::child c = tw.initChild();
-	getImgRep(imgName, tw, c);
-    //return UnitTest::RunAllTests();
+    
+    NativeDLib align(argv[0]);
+    std::string imgName = argv[1];
+    
+    TorchWrap tw(argv[0]);
+    boost::process::child c = tw.initChild();
+    GetImgRep(align, imgName, tw, c);
 }

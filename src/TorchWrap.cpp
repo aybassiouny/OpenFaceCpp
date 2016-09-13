@@ -1,68 +1,49 @@
 #include "TorchWrap.h"
-#include <chrono>
 
-using namespace std;
+#include <iostream>
+#include <string>
+#include <chrono>
+#include "tinyxml2.h"
+
+using namespace OpenFaceCpp;
+
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 using TimePoint = std::chrono::steady_clock::time_point;
 
 using namespace std::chrono;
+using namespace boost::process;
 
-int getduration3(TimePoint t1, TimePoint t2)
+TorchWrap::TorchWrap(const std::string& configFileName)
 {
-    return  std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t2).count();
+    tinyxml2::XMLDocument doc;
+    doc.LoadFile(configFileName.c_str());
+    m_modelPath = doc.FirstChildElement("ModelPath")->GetText();
+    m_imgDim = std::stoi(doc.FirstChildElement("ImgDimension")->GetText());
+    m_repFileName = doc.FirstChildElement("RepresentationFileName")->GetText();
 }
 
-
-TorchWrap::TorchWrap() :TorchWrap("models/openface/nn4.v1.t7", 96, "representation.txt")
+child TorchWrap::initChild()
 {
-	
-}
-
-TorchWrap::TorchWrap(std::string inModelPath, int inImgDim, std::string inRepFileName)
-{
-	modelPath = inModelPath; 
-    imgDim  = inImgDim;    
-    repFileName = inRepFileName;
-}
-
-bp::child TorchWrap::initChild()
-{
-	ctx.stdout_behavior = bp::capture_stream(); 
+    /*ctx.stdout_behavior = bp::capture_stream(); 
     ctx.stdin_behavior = bp::capture_stream();
-    ctx.environment = bp::self::get_environment();
-	std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim);    
-	//std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model models/openface/nn4.v1.t7 -imgDim 96";    
-	std::cout<<"Launching "<<exec<<std::endl;
-	return bp::launch_shell(exec, ctx);
+    ctx.environment = bp::self::get_environment();*/
+    std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model "+m_modelPath+" -imgDim "+std::to_string(m_imgDim);    
+    //std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model models/openface/nn4.v1.t7 -imgDim 96";    
+    std::cout<<"Launching "<<exec<<std::endl;
+    return execute(windows::initializers::run_exe(exec));
+    //return bp::launch_shell(exec, ctx);
 }
 
-std::vector<double> TorchWrap::forwardImage(std::string imgPath)
+std::vector<double> TorchWrap::ForwardImage(const std::string& imgPath)
 {
-	std::string exec = "th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim);    
-	std::cout<<"Launching "<<exec<<std::endl;
-	
-	std::vector<double> imgRep;
-	std::cout<<"listening ..."<<std::endl;
-    std::ofstream out(repFileName);
+    std::string exec = "th openface_server.lua -model "+m_modelPath+" -imgDim "+std::to_string(m_imgDim);    
+    std::cout<<"Launching "<<exec<<std::endl;
     
-	//std::string cmd = "th openface_server.lua -model "+modelPath+" -imgDim "+std::to_string(imgDim)+" -imgPath "+imgPath;
-    //cout<<"before cmd: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-    //pipe = std::shared_ptr<FILE>(popen(cmd.c_str(), "r"), pclose);
-    //std::cout<<cmd<<std::endl;
-    //cout<<"after cmd: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-    //if (!pipe) 
-	//	throw std::exception();
-	//char buffer[128];
+    std::vector<double> imgRep;
+    std::cout<<"listening ..."<<std::endl;
+    std::ofstream out(m_repFileName);
+    
     std::string imgRepStr = "";
-    //std::cout<<"sending ..."<<imgPath<<std::endl;
-    //std::cout<<"receiving ..."<<std::endl;
-	//std::cout<<"Received imgRepStr of length "<<imgRepStr.size()<<std::endl;
-    // cout<<"before pipe: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-    // while (!feof(pipe.get())) {
-    //     if (fgets(buffer, 128, pipe.get()) != NULL)
-    //         imgRepStr += buffer;
-    // }
-    //cout<<"after pipe: "<<getduration3(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
     int curPos = 0;
     auto pos = imgRepStr.find(",", curPos);
     while(pos!=std::string::npos){
@@ -74,20 +55,20 @@ std::vector<double> TorchWrap::forwardImage(std::string imgPath)
     }
     return imgRep;
 }
-	
-std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
+    
+std::vector<double> TorchWrap::ForwardImage(const std::string& imgPath, const boost::process::windows::child& ch)
 {
-	std::vector<double> imgRep;
-	std::cout<<"listening ..."<<std::endl;
-	bp::pistream &is = c.get_stdout(); 
-    bp::postream &pout = c.get_stdin();
-    std::ofstream out(repFileName);
+    std::vector<double> imgRep;
+    std::cout<<"listening ..."<<std::endl;
+    //bp::pistream &is = ch.get_stdout(); 
+    //bp::postream &pout = ch.get_stdin();
+    std::ofstream out(m_repFileName);
     
     std::string imgRepStr = "";
     std::cout<<"sending ..."<<imgPath<<std::endl;
-    pout<<imgPath<<endl;
+    //pout<<imgPath<<std::endl;
     std::cout<<"receiving ..."<<std::endl;
-	std::getline(is, imgRepStr);
+    //std::getline(is, imgRepStr);
     int curPos = 0;
     auto pos = imgRepStr.find(",", curPos);
     while(pos!=std::string::npos){
@@ -97,5 +78,6 @@ std::vector<double> TorchWrap::forwardImage(std::string imgPath, bp::child& c)
         curPos = pos+1; 
         pos = imgRepStr.find(",", curPos);
     }
+
     return imgRep;
 }

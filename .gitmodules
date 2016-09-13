@@ -4,3 +4,6 @@
 [submodule "Lib/unittest-cpp"]
 	path = Lib/unittest-cpp
 	url = https://github.com/unittest-cpp/unittest-cpp.git
+[submodule "Lib/tinyxml2"]
+	path = Lib/tinyxml2
+	url = https://github.com/leethomason/tinyxml2

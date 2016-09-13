@@ -1,3 +1,5 @@
+#pragma once
+
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
@@ -5,56 +7,40 @@
 #include <dlib/image_processing.h>
 #include <dlib/opencv.h>
 #include "opencv2/opencv.hpp"
-#include <fstream> 
-#include <string> 
-#include <iostream>
-#include <fstream> 
-#include <string> 
-#include <algorithm> 
 
-class Point{
-public:
-	double x;
-	double y;
-	Point(double i,double j)
-	{ 
-		x = i; y = j;
-	};
-};
-
-typedef std::vector<dlib::point> PointList;
-typedef dlib::rectangle BoundingBox;
-typedef dlib::array2d<dlib::bgr_pixel>  Image;
-typedef dlib::cv_image<dlib::bgr_pixel> cvDlibImage;
-typedef std::vector<Point> AvgPointList;
-class NativeDLib 
+namespace OpenFaceCpp
 {
-public: 
-	Image img;
-	dlib::frontal_face_detector detector;
-	dlib::shape_predictor shapePredictor;
-	AvgPointList meanAveragePoints;
-	
-	Point getDoubleFromCSVLine(std::string line);
-public: 
-	NativeDLib();	
-	NativeDLib(std::string faceModelFileName, 
-				std::string shapePredictorFileName);
-	void init(std::string faceModelFileName, 
-				std::string shapePredictorFileName);
-	BoundingBox getLargestFaceBoundingBox(Image &img);
-	BoundingBox getLargestFaceBoundingBox(cv::Mat img);
-	
-	void loadShapePredictor(std::string shapePredictorFileName);
-	void printFaceMeanList();
-	int getNumberOfPoints();
-	void loadMeanPoints(std::string faceModelName);
-	void checkOpenedFile(std::ifstream &inFile);
-	
-	cv::Mat alignImg(std::string method, int imgDim, Image &img, BoundingBox bb, std::string imgName);
-	PointList transformPoints(AvgPointList points, BoundingBox faceBB);
-	PointList align(Image &img, BoundingBox faceBB);
-	PointList align(cv::Mat cvImg, BoundingBox faceBB);
-	cv::Mat dlibImgtoCV(Image &img);
-};
+    using PointList = std::vector<dlib::point>;
+    using DlibImage = dlib::array2d<dlib::bgr_pixel>;
+    using DlibOpenCVImage = dlib::cv_image<dlib::bgr_pixel>;
+    using AvgPointList = std::vector<cv::Point2d>;
 
+    class NativeDLib
+    {
+    public:
+        NativeDLib(const std::string& configFileName);
+        
+        dlib::rectangle GetLargestFaceBoundingBox(const DlibImage &img);
+        dlib::rectangle GetLargestFaceBoundingBox(const cv::Mat& img);
+
+        cv::Mat AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb, const std::string& imgName);
+
+    private:
+        void PrintFaceMeanList();
+        int GetNumberOfPoints();
+        void LoadMeanPoints(const std::string& faceModelName);
+        void CheckOpenedFile(const std::ifstream &inFile);
+
+        void GetDoubleFromCSVLine(const std::string& line, cv::Point2d& outputPoint);
+        PointList TransformPoints(const AvgPointList& points, const dlib::rectangle& faceBB);
+        PointList Align(DlibImage &img, const dlib::rectangle& faceBB);
+        PointList Align(const cv::Mat& cvImg, const dlib::rectangle& faceBB);
+        cv::Mat DlibImgtoCV(DlibImage &img);
+
+        DlibImage m_img;
+        dlib::frontal_face_detector m_detector;
+        dlib::shape_predictor m_shapePredictor;
+        AvgPointList m_meanAveragePoints;
+    };
+
+}

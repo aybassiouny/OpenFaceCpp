@@ -1,249 +1,260 @@
 #include "NativeDLib.h"
+
+#include <tinyxml2.h>
+
 #include <chrono>
 
-using namespace std;
+using namespace OpenFaceCpp;
+
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 using TimePoint = std::chrono::steady_clock::time_point;
 
 using namespace std::chrono;
 
-int getduration2(TimePoint t1, TimePoint t2)
+int GetDuration(TimePoint t1, TimePoint t2)
 {
-	return  std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t2).count();
+    return  std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t2).count();
 }
 
-NativeDLib::NativeDLib()
+NativeDLib::NativeDLib(const std::string& configFileName)
 {
-	detector = dlib::get_frontal_face_detector();
+    try
+    {
+        tinyxml2::XMLDocument doc;
+        doc.LoadFile(configFileName.c_str());
+        std::string faceModelFileName = doc.FirstChildElement("FaceModelFileName")->GetText();
+        std::string shapePredictorFileName = doc.FirstChildElement("ShapePredictorFileName")->GetText();
+
+        LoadMeanPoints(faceModelFileName);
+        dlib::deserialize(shapePredictorFileName) >> m_shapePredictor;
+
+        std::istringstream sin(dlib::get_serialized_frontal_faces());
+        dlib::deserialize(m_detector, sin);
+    }
+    catch (const std::invalid_argument& ia) 
+    {
+        std::cerr << "Invalid argument: " << ia.what() << '\n';
+    }
+    catch (std::ifstream::failure e) 
+    {
+        std::cerr << "Exception opening/reading/closing file\n";
+    }
 }
 
-NativeDLib::NativeDLib(std::string faceModelFileName, std::string shapePredictorFileName)
+//void NativeDLib::Init(const std::string& faceModelFileName, const std::string& shapePredictorFileName)
+//{
+//    try
+//    {
+//        LoadMeanPoints(faceModelFileName);
+//        LoadShapePredictor(shapePredictorFileName);
+//        m_detector = dlib::get_frontal_face_detector();
+//    }
+//    catch (const std::invalid_argument& ia) 
+//    {
+//        std::cerr << "Invalid argument: " << ia.what() << '\n';
+//    }
+//    catch (std::ifstream::failure e) 
+//    {
+//        std::cerr << "Exception opening/reading/closing file\n";
+//    }
+//}
+
+void NativeDLib::LoadMeanPoints(const std::string& faceModelFileName)
 {
-	try{
-		loadMeanPoints(faceModelFileName);
-		loadShapePredictor(shapePredictorFileName);
-		detector = dlib::get_frontal_face_detector();
-	}
-	catch (const std::invalid_argument& ia) 
-	{
-		std::cerr << "Invalid argument: " << ia.what() << '\n';
-	}
-	catch (std::ifstream::failure e) 
-	{
-    	std::cerr << "Exception opening/reading/closing file\n";
-	}
+    std::ifstream inputFaceModelFile(faceModelFileName);
+    CheckOpenedFile(inputFaceModelFile);
+    std::string line; 
+    while(std::getline(inputFaceModelFile, line)) 
+    {
+        cv::Point2d tempPoint;
+        GetDoubleFromCSVLine(line, tempPoint);
+        m_meanAveragePoints.push_back(std::move(tempPoint));
+    }
 }
 
-void NativeDLib::init(std::string faceModelFileName, std::string shapePredictorFileName)
+void NativeDLib::CheckOpenedFile(const std::ifstream& inFile)
 {
-	try{
-		loadMeanPoints(faceModelFileName);
-		loadShapePredictor(shapePredictorFileName);
-		detector = dlib::get_frontal_face_detector();
-	}
-	catch (const std::invalid_argument& ia) 
-	{
-		std::cerr << "Invalid argument: " << ia.what() << '\n';
-	}
-	catch (std::ifstream::failure e) 
-	{
-    	std::cerr << "Exception opening/reading/closing file\n";
-	}
+    if(!inFile.good())
+        throw std::invalid_argument("Unable to process file.");;
 }
 
-void NativeDLib::loadShapePredictor(std::string shapePredictorFileName)
+int NativeDLib::GetNumberOfPoints()
 {
-	dlib::deserialize(shapePredictorFileName) >> shapePredictor;
+    return m_meanAveragePoints.size();
 }
 
-
-void NativeDLib::loadMeanPoints(std::string faceModelFileName)
-{
-	std::ifstream inputFaceModelFile(faceModelFileName);
-	checkOpenedFile(inputFaceModelFile);
-	std::string line; 
-	while(getline(inputFaceModelFile, line)) 
-	{
-		Point tempPoint = getDoubleFromCSVLine(line);
-		meanAveragePoints.push_back(tempPoint);
-	}
+void NativeDLib::GetDoubleFromCSVLine(const std::string& line, cv::Point2d& outputPoint )
+{    
+    std::size_t commaPos = line.find(',');
+    std::string firstPart = line.substr(0, commaPos);
+    outputPoint.x = std::stod(firstPart);
+    std::string secondPart = line.substr(commaPos+1);
+    outputPoint.y = std::stod(secondPart);
 }
 
-void NativeDLib::checkOpenedFile(std::ifstream &inFile)
+void NativeDLib::PrintFaceMeanList()
 {
-	if(!inFile.good())
-		throw std::invalid_argument("Unable to process file.");;
+    for (auto curPoint: m_meanAveragePoints)
+    {
+        std::cout<<curPoint.x<<" "<<curPoint.y<<std::endl;
+    }
 }
 
-int NativeDLib::getNumberOfPoints()
+dlib::rectangle NativeDLib::GetLargestFaceBoundingBox(const cv::Mat& cvimg)
 {
-	return meanAveragePoints.size();
+    DlibOpenCVImage img(cvimg);
+    std::vector<dlib::rectangle> faces = m_detector(img);
+    dlib::rectangle largestFace;
+    int largestArea = 0;
+    for(dlib::rectangle face:faces){
+        int currentArea = face.width()*face.height();
+        if(currentArea>largestArea)
+        {
+            largestArea = currentArea;
+            largestFace = face;
+        }
+    }
+    return largestFace;
 }
 
-Point NativeDLib::getDoubleFromCSVLine(std::string line)
+dlib::rectangle NativeDLib::GetLargestFaceBoundingBox(const DlibImage& img)
 {
-	double x,y;
-	std::size_t commaPos = line.find(',');
-	std::string firstPart = line.substr(0, commaPos);
-	x = std::stod(firstPart);
-	std::string secondPart = line.substr(commaPos+1);
-	y = std::stod(secondPart);
-	Point res(x,y);
-	return res;
+    std::vector<dlib::rectangle> faces = m_detector(img);
+    dlib::rectangle largestFace;
+    int largestArea = 0;
+    for(const auto& face:faces){
+        int currentArea = face.width()*face.height();
+        if(currentArea>largestArea)
+        {
+            largestArea = currentArea;
+            largestFace = face;
+        }
+    }
+    return largestFace;
 }
 
-void NativeDLib::printFaceMeanList()
+cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb, const std::string& imgName)
 {
-	for(Point curPoint: meanAveragePoints){
-		std::cout<<curPoint.x<<" "<<curPoint.y<<std::endl;
-	}
-}
+    auto dlibImb = DlibImgtoCV(img);
+    PointList alignPoints = Align(dlibImb, bb);
+    PointList meanAlignPoints = TransformPoints(m_meanAveragePoints, bb);
 
-BoundingBox NativeDLib::getLargestFaceBoundingBox(cv::Mat cvimg)
-{	
-	cvDlibImage img(cvimg);
-	std::vector<BoundingBox> faces = detector(img);
-	BoundingBox largestFace; 
-	int largestArea = 0;
-	for(BoundingBox face:faces){
-		int currentArea = face.width()*face.height();
-		if(currentArea>largestArea)
-		{
-			largestArea = currentArea;
-			largestFace = face;
-		}
-	}
-	return largestFace;
-}
+    if (meanAlignPoints.size() < 1)
+    {
+        throw std::range_error("Mean align points Error. Did you laod Face Model?");
+    }
 
-BoundingBox NativeDLib::getLargestFaceBoundingBox(Image &img)
-{
-	std::vector<BoundingBox> faces = detector(img);
-	BoundingBox largestFace; 
-	int largestArea = 0;
-	for(BoundingBox face:faces){
-		int currentArea = face.width()*face.height();
-		if(currentArea>largestArea)
-		{
-			largestArea = currentArea;
-			largestFace = face;
-		}
-	}
-	return largestFace;
-}
+    int left=meanAlignPoints[0].x(), top=meanAlignPoints[0].y(), 
+        right=meanAlignPoints[0].x(), bottom=meanAlignPoints[0].y();
+    
+    for(std::size_t i=0; i<meanAlignPoints.size(); i++)
+    {
+        left = std::min<long>(left, meanAlignPoints[i].x());
+        top = std::min<long>(top, meanAlignPoints[i].y());
+        right = std::max<long>(right, meanAlignPoints[i].y());
+        bottom = std::max<long>(bottom, meanAlignPoints[i].y());
+    }
 
-cv::Mat NativeDLib::alignImg(std::string method, int imgDim, Image &img, BoundingBox bb,  std::string imgName)
-{
-	
-	PointList alignPoints = align(img, bb);
-	PointList meanAlignPoints = transformPoints(meanAveragePoints, bb);
-	if(meanAlignPoints.size()<1)
-			throw std::range_error("Mean align points Error. Did you laod Face Model?");
-	int left=meanAlignPoints[0].x(), top=meanAlignPoints[0].y(), 
-		right=meanAlignPoints[0].x(), bottom=meanAlignPoints[0].y();
-	
-	for(int i=0; i<meanAlignPoints.size(); i++)
-	{
-		left = std::min((long)left, meanAlignPoints[i].x());
-		top = std::min((long)top, meanAlignPoints[i].y());
-		right = std::max((long)right, meanAlignPoints[i].y());
-		bottom = std::max(long(bottom), meanAlignPoints[i].y());
-	}
-	dlib::rectangle tightBb(left, top, right, bottom);
-	int ss[3] ={39, 42, 57}; 
-	//cout<<"step 1: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	cv::Point2f alignPointsSS[3];
-	cv::Point2f meanAlignPointsSS[3]; 
-	for(int i=0; i<3; i++){
-		alignPointsSS[i].x = alignPoints[ss[i]].x(); 
-		alignPointsSS[i].y = alignPoints[ss[i]].y();
-		
-		meanAlignPointsSS[i].x = meanAlignPoints[ss[i]].x();
-		meanAlignPointsSS[i].y = meanAlignPoints[ss[i]].y();
-	}
-	cv::Mat H = cv::getAffineTransform(alignPointsSS, meanAlignPointsSS);
-	
-	TimePoint t1 = steady_clock::now();
-	cv::Mat cvImg = dlibImgtoCV(img);
-	//cout<<"dlibImgtoCV: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	//std::cout<<cvImg.rows<<" "<<cvImg.cols<<std::endl;
-	cv::Mat warpedImg = cv::Mat::zeros( cvImg.rows, cvImg.cols, cvImg.type());
-	//cout<<"cv::Mat::zeros: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	cv::warpAffine(cvImg, warpedImg, H, warpedImg.size());
-	//cout<<"warpAffine: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	BoundingBox wBb = getLargestFaceBoundingBox(warpedImg);
-	//cout<<"getLargestFaceBoundingBox: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	if(wBb.width()<=0 || wBb.height()<=0)
-		throw std::invalid_argument("Error with bounding box.");
-	PointList wAlignPoints = align(warpedImg, wBb);
-	//cout<<"align: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	PointList wMeanAlignPoints = transformPoints(meanAveragePoints, wBb);
-	//cout<<"transformPoints: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	if(warpedImg.channels()!=3)
-		throw std::invalid_argument("Image does not have 3 channels.");
-		
-	left=wAlignPoints[0].x(), top=wAlignPoints[0].y(), 
-		right=wAlignPoints[0].x(), bottom=wAlignPoints[0].y();
-	for(int i=0; i<wAlignPoints.size(); i++)
-	{
-		left = std::min((long)left, wAlignPoints[i].x());
-		top = std::min((long)top, wAlignPoints[i].y());
-		right = std::max(long(right), wAlignPoints[i].y());
-		bottom = std::max(long(bottom), wAlignPoints[i].y());
-	}
-	//cout<<"step 4: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	int w = warpedImg.size[0], h = warpedImg.size[1];
-	
-	if (!(0 <= left && left <= w && 0 <= right && right <= w &&
-		 0 <= bottom && bottom <= h && 0 <= top && top <= h))
+    dlib::rectangle tightBb(left, top, right, bottom);
+    int ss[3] ={39, 42, 57}; 
+    cv::Point2f alignPointsSS[3];
+    cv::Point2f meanAlignPointsSS[3]; 
+
+    for(std::size_t i=0; i<3; i++)
+    {
+        alignPointsSS[i].x = alignPoints[ss[i]].x(); 
+        alignPointsSS[i].y = alignPoints[ss[i]].y();
+        
+        meanAlignPointsSS[i].x = meanAlignPoints[ss[i]].x();
+        meanAlignPointsSS[i].y = meanAlignPoints[ss[i]].y();
+    }
+
+    cv::Mat H = cv::getAffineTransform(alignPointsSS, meanAlignPointsSS);
+    
+    TimePoint t1 = steady_clock::now();
+    cv::Mat cvImg = DlibImgtoCV(img);
+    cv::Mat warpedImg = cv::Mat::zeros( cvImg.rows, cvImg.cols, cvImg.type());
+    cv::warpAffine(cvImg, warpedImg, H, warpedImg.size());
+    dlib::rectangle wBb = GetLargestFaceBoundingBox(warpedImg);
+    
+    if (wBb.width() <= 0 || wBb.height() <= 0)
+    {
+        throw std::invalid_argument("Error with bounding box.");
+    }
+
+    PointList wAlignPoints = Align(warpedImg, wBb);
+    PointList wMeanAlignPoints = TransformPoints(m_meanAveragePoints, wBb);
+    
+    if(warpedImg.channels()!=3)
+        throw std::invalid_argument("Image does not have 3 channels.");
+        
+    left=wAlignPoints[0].x(), top=wAlignPoints[0].y(), 
+        right=wAlignPoints[0].x(), bottom=wAlignPoints[0].y();
+
+    for(std::size_t i=0; i<wAlignPoints.size(); i++)
+    {
+        left = std::min<long>(left, wAlignPoints[i].x());
+        top = std::min<long>(top, wAlignPoints[i].y());
+        right = std::max<long>(right, wAlignPoints[i].y());
+        bottom = std::max<long>(bottom, wAlignPoints[i].y());
+    }
+
+    int w = warpedImg.size[0], h = warpedImg.size[1];
+    
+    if (!(0 <= left && left <= w && 0 <= right && right <= w &&
+        0 <= bottom && bottom <= h && 0 <= top && top <= h))
+    {
         throw std::invalid_argument("Warning: Unable to align and crop to the "
-              "face's bounding box.");
-    //cout<<"step 5: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
-	cv::Rect wrect(wBb.left(), wBb.top(), wBb.width(), wBb.height());
-	cv::rectangle(warpedImg, wrect,  cv::Scalar(0, 0, 255));
-	cv::resize(warpedImg, warpedImg, cv::Size(imgDim, imgDim));
-	//cout<<"step 6: "<<getduration2(steady_clock::now(), t1)<<endl; t1 = steady_clock::now();
+            "face's bounding box.");
+    }
+
+    cv::Rect wrect(wBb.left(), wBb.top(), wBb.width(), wBb.height());
+    cv::rectangle(warpedImg, wrect,  cv::Scalar(0, 0, 255));
+    cv::resize(warpedImg, warpedImg, cv::Size(imgDim, imgDim));
+    
     return warpedImg;
 }
 
-PointList NativeDLib::align(Image &img, BoundingBox faceBB)
+//PointList NativeDLib::Alignconst (DlibImage &img, const dlib::rectangle& faceBB)
+//{
+//    PointList res;
+//    dlib::full_object_detection shape = m_shapePredictor(img, faceBB);
+//    for(int i=0; i<shape.num_parts(); i++)
+//    {
+//        res.push_back(shape.part(i));
+//    }
+//    return res;
+//}
+
+PointList NativeDLib::Align(const cv::Mat& cvImg, const dlib::rectangle& faceBB)
 {
-	PointList res;
-	dlib::full_object_detection shape = shapePredictor(img, faceBB);
-	for(int i=0; i<shape.num_parts(); i++)
-	{
-		res.push_back(shape.part(i));	
-	}
-	return res;
+    PointList res;
+    DlibOpenCVImage cvdlibimg(cvImg);
+    dlib::full_object_detection shape = m_shapePredictor(cvdlibimg, faceBB);
+    for(std::size_t i=0; i<shape.num_parts(); i++)
+    {
+        res.push_back(shape.part(i));	
+    }
+
+    return res;
 }
 
-PointList NativeDLib::align(cv::Mat cvImg, BoundingBox faceBB)
+PointList NativeDLib::TransformPoints(const AvgPointList& points, const dlib::rectangle& faceBB)
 {
-	PointList res;
-	cvDlibImage cvdlibimg(cvImg);
-	dlib::full_object_detection shape = shapePredictor(cvdlibimg, faceBB);
-	for(int i=0; i<shape.num_parts(); i++)
-	{
-		res.push_back(shape.part(i));	
-	}
-	return res;
-}
+    PointList res;
+    for(std::size_t i=0; i<points.size(); i++)
+    {
+        double x = points[i].x, y = points[i].y;
+        dlib::point transformedP(int((x * faceBB.width()) + faceBB.left()), 
+                    int((y * faceBB.height()) + faceBB.top()));
+        res.push_back(transformedP);			
+    }
 
-PointList NativeDLib::transformPoints(AvgPointList points, BoundingBox faceBB)
-{
-	PointList res;
-	for(int i=0; i<points.size(); i++)
-	{
-		double x = points[i].x, y = points[i].y;
-		dlib::point transformedP(int((x * faceBB.width()) + faceBB.left()), 
-					int((y * faceBB.height()) + faceBB.top()));
-		res.push_back(transformedP);			
-	}	
-	return res;
+    return res;
 }
 
 
-cv::Mat NativeDLib::dlibImgtoCV(Image &img)
+cv::Mat NativeDLib::DlibImgtoCV(DlibImage& img)
 {
-	return  dlib::toMat(img);
+    return  dlib::toMat(img);
 }

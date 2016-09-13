@@ -1,36 +1,25 @@
-#ifndef TORCHWRAP_H
-#define TORCHWRAP_H
-
+#pragma once
+#include <boost/process.hpp>
+#include <boost/process/config.hpp>
 
 #include <vector>
-#include <string>
-#include <iostream>
 #include <cstdio>
 #include <memory> 
-#include <string>
-#include <exception> 
-#include <fstream>
-#include <boost/process.hpp> 
-#include <vector> 
 
-namespace bp = ::boost::process; 
+namespace OpenFaceCpp
+{
+    class TorchWrap {
+    public:
+        TorchWrap(const std::string& configFileName);
+        std::vector<double> ForwardImage(const std::string& imgPath);
+        std::vector<double> ForwardImage(const std::string& imgPath, const boost::process::windows::child& child);
+        boost::process::child initChild();
 
-class TorchWrap{
-	std:: string modelPath; 
-    int imgDim;    
-	std::shared_ptr<FILE> pipe;
-	std::string inModelPath;
-	std::string repFileName;
-public:
-	TorchWrap();
-	TorchWrap(std::string inModelPath, int inImgDim, std::string inRepFileName);	
-	std::vector<double> 	forwardImage(std::string imgPath);
-	std::vector<double> 	forwardImage(std::string imgPath, bp::child& c);
-	bp::child initChild();
-	//boost::optional<bp::child> c;
-
-	bp::context ctx; 
-	//void forwardPath(std::string imgPath);
-};
-
-#endif
+    private:
+        std::string m_modelPath;
+        int m_imgDim;
+        std::shared_ptr<FILE> m_pipe;
+        std::string m_inModelPath;
+        std::string m_repFileName;
+    };
+}
