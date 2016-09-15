@@ -23,7 +23,7 @@ namespace OpenFaceCpp
         dlib::rectangle GetLargestFaceBoundingBox(const DlibImage &img);
         dlib::rectangle GetLargestFaceBoundingBox(const cv::Mat& img);
 
-        cv::Mat AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb, const std::string& imgName);
+        cv::Mat AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb);
 
     private:
         void PrintFaceMeanList();

@@ -1,83 +1,105 @@
 #include "TorchWrap.h"
+#include "tinyxml2.h"
 
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "tinyxml2.h"
+
+#include <boost/iostreams/stream.hpp>
 
 using namespace OpenFaceCpp;
-
-#define Malloc(type,n) (type *)malloc((n)*sizeof(type))
-using TimePoint = std::chrono::steady_clock::time_point;
 
 using namespace std::chrono;
 using namespace boost::process;
 
+namespace 
+{
+    void StringToVecOfStrings(const std::string str, std::vector<std::string> res)
+    {
+        std::stringstream ss;
+        while(ss<<str)
+        {
+            res.push_back(ss.str());
+            ss.clear();
+        }
+    }
+}
+
+TorchWrap::Executer::Executer(const std::string& modelPath, int imgDim)
+    :
+    m_appToChild{ create_pipe() },
+    m_childToApp{ create_pipe() }
+{
+    m_childSink.open(m_appToChild.sink, boost::iostreams::close_handle);
+    m_childSource.open(m_childToApp.source, boost::iostreams::close_handle);
+
+    const std::string c_exec = "th_emulator openface_server.lua -model " + modelPath + " -imgDim " + std::to_string(imgDim);
+    std::vector<std::string > commandWithArguments;
+    StringToVecOfStrings(c_exec, commandWithArguments);
+
+    std::cout << "Launching " << c_exec << std::endl;
+    m_child = std::make_unique<boost::process::child>(
+        execute(initializers::set_args(commandWithArguments),
+            initializers::bind_stdout(m_childSink),
+            initializers::bind_stdin(m_childSource)));
+
+    m_appSource.open(m_appToChild.source, boost::iostreams::close_handle);
+    m_childSink.open(m_childToApp.sink, boost::iostreams::close_handle);
+}
+
+bool TorchWrap::Executer::SendMsg(const std::string& msg)
+{
+    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> appOutChildIn(m_childSink);
+    appOutChildIn << msg << std::endl;
+    return true;
+}
+
+bool TorchWrap::Executer::ReceiveMsg(std::string& msg)
+{
+    std::cout << "listening ..." << std::endl;
+    boost::iostreams::stream<boost::iostreams::file_descriptor_source> childOutAppin(m_appSource);
+    std::getline(childOutAppin, msg);
+    std::cout << "Received: " << msg << std::endl;
+    return true;
+}
+
 TorchWrap::TorchWrap(const std::string& configFileName)
+    :
+    m_aligner{configFileName}
 {
     tinyxml2::XMLDocument doc;
     doc.LoadFile(configFileName.c_str());
     m_modelPath = doc.FirstChildElement("ModelPath")->GetText();
     m_imgDim = std::stoi(doc.FirstChildElement("ImgDimension")->GetText());
     m_repFileName = doc.FirstChildElement("RepresentationFileName")->GetText();
+
+    m_executer = std::make_unique<Executer>(m_modelPath, m_imgDim);
 }
 
-child TorchWrap::initChild()
+void TorchWrap::ForwardImage(const std::string& imgPath, std::vector<float>& representation)
 {
-    /*ctx.stdout_behavior = bp::capture_stream(); 
-    ctx.stdin_behavior = bp::capture_stream();
-    ctx.environment = bp::self::get_environment();*/
-    std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model "+m_modelPath+" -imgDim "+std::to_string(m_imgDim);    
-    //std::string exec = "/home/aybassiouny/torch/install/bin/th openface_server.lua -model models/openface/nn4.v1.t7 -imgDim 96";    
-    std::cout<<"Launching "<<exec<<std::endl;
-    return execute(windows::initializers::run_exe(exec));
-    //return bp::launch_shell(exec, ctx);
-}
+    cv::Mat src = cv::imread(imgPath, 1);
+    OpenFaceCpp::DlibImage img;
+    dlib::assign_image(img, dlib::cv_image<dlib::bgr_pixel>(src));
+    dlib::rectangle face = m_aligner.GetLargestFaceBoundingBox(img);
+    cv::Mat alignedFace = m_aligner.AlignImg(96, img, face);
 
-std::vector<double> TorchWrap::ForwardImage(const std::string& imgPath)
-{
-    std::string exec = "th openface_server.lua -model "+m_modelPath+" -imgDim "+std::to_string(m_imgDim);    
-    std::cout<<"Launching "<<exec<<std::endl;
+    std::string inputImgName = "temp_aligned.jpg";
+    cv::imwrite(inputImgName, alignedFace);
+
+    m_executer->SendMsg(inputImgName);
     
-    std::vector<double> imgRep;
-    std::cout<<"listening ..."<<std::endl;
-    std::ofstream out(m_repFileName);
+    std::string imgRepStr;
+    m_executer->ReceiveMsg(imgRepStr);
     
-    std::string imgRepStr = "";
     int curPos = 0;
     auto pos = imgRepStr.find(",", curPos);
-    while(pos!=std::string::npos){
+    while(pos!=std::string::npos)
+    {
         std::string substr = imgRepStr.substr(curPos, pos - curPos);
-        out<<substr<<std::endl;
-        imgRep.emplace_back(stod(substr));
+        std::cout<<substr<<std::endl;
+        representation.emplace_back(stod(substr));
         curPos = pos+1; 
         pos = imgRepStr.find(",", curPos);
     }
-    return imgRep;
-}
-    
-std::vector<double> TorchWrap::ForwardImage(const std::string& imgPath, const boost::process::windows::child& ch)
-{
-    std::vector<double> imgRep;
-    std::cout<<"listening ..."<<std::endl;
-    //bp::pistream &is = ch.get_stdout(); 
-    //bp::postream &pout = ch.get_stdin();
-    std::ofstream out(m_repFileName);
-    
-    std::string imgRepStr = "";
-    std::cout<<"sending ..."<<imgPath<<std::endl;
-    //pout<<imgPath<<std::endl;
-    std::cout<<"receiving ..."<<std::endl;
-    //std::getline(is, imgRepStr);
-    int curPos = 0;
-    auto pos = imgRepStr.find(",", curPos);
-    while(pos!=std::string::npos){
-        std::string substr = imgRepStr.substr(curPos, pos - curPos);
-        out<<substr<<std::endl;
-        imgRep.emplace_back(stod(substr));
-        curPos = pos+1; 
-        pos = imgRepStr.find(",", curPos);
-    }
-
-    return imgRep;
 }

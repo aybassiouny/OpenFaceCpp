@@ -6,15 +6,7 @@
 
 using namespace OpenFaceCpp;
 
-#define Malloc(type,n) (type *)malloc((n)*sizeof(type))
-using TimePoint = std::chrono::steady_clock::time_point;
-
 using namespace std::chrono;
-
-int GetDuration(TimePoint t1, TimePoint t2)
-{
-    return  std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t2).count();
-}
 
 NativeDLib::NativeDLib(const std::string& configFileName)
 {
@@ -40,24 +32,6 @@ NativeDLib::NativeDLib(const std::string& configFileName)
         std::cerr << "Exception opening/reading/closing file\n";
     }
 }
-
-//void NativeDLib::Init(const std::string& faceModelFileName, const std::string& shapePredictorFileName)
-//{
-//    try
-//    {
-//        LoadMeanPoints(faceModelFileName);
-//        LoadShapePredictor(shapePredictorFileName);
-//        m_detector = dlib::get_frontal_face_detector();
-//    }
-//    catch (const std::invalid_argument& ia) 
-//    {
-//        std::cerr << "Invalid argument: " << ia.what() << '\n';
-//    }
-//    catch (std::ifstream::failure e) 
-//    {
-//        std::cerr << "Exception opening/reading/closing file\n";
-//    }
-//}
 
 void NativeDLib::LoadMeanPoints(const std::string& faceModelFileName)
 {
@@ -133,7 +107,7 @@ dlib::rectangle NativeDLib::GetLargestFaceBoundingBox(const DlibImage& img)
     return largestFace;
 }
 
-cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb, const std::string& imgName)
+cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb)
 {
     auto dlibImb = DlibImgtoCV(img);
     PointList alignPoints = Align(dlibImb, bb);
@@ -171,7 +145,6 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
 
     cv::Mat H = cv::getAffineTransform(alignPointsSS, meanAlignPointsSS);
     
-    TimePoint t1 = steady_clock::now();
     cv::Mat cvImg = DlibImgtoCV(img);
     cv::Mat warpedImg = cv::Mat::zeros( cvImg.rows, cvImg.cols, cvImg.type());
     cv::warpAffine(cvImg, warpedImg, H, warpedImg.size());
@@ -214,17 +187,6 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
     
     return warpedImg;
 }
-
-//PointList NativeDLib::Alignconst (DlibImage &img, const dlib::rectangle& faceBB)
-//{
-//    PointList res;
-//    dlib::full_object_detection shape = m_shapePredictor(img, faceBB);
-//    for(int i=0; i<shape.num_parts(); i++)
-//    {
-//        res.push_back(shape.part(i));
-//    }
-//    return res;
-//}
 
 PointList NativeDLib::Align(const cv::Mat& cvImg, const dlib::rectangle& faceBB)
 {
