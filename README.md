@@ -1,20 +1,12 @@
 # OpenFaceCpp
-C++ implementation for [OpenFace](https://github.com/cmusatyalab/openface) library by CMU. This is still a work in progress. 
+C++ implementation for [OpenFace](https://github.com/cmusatyalab/openface) library by CMU.  
 
-We utilize all their dependencies: dlib, torch and OpenCV, besides a minimal testing library: UnitTest++. All is inlucded except for OpenCV that you need to have pre-installed on your system. 
-
-# System support
-Up to this point (check below) the system if up and running over Ubuntu, CentOS and Windows. It's expected for windows to fall back later on due to the torch dependency - but someone maybe could make their unofficial release work. 
+Although there are many depedencies, the repo tries to minimize manual setup steps by using hunter packaging. Currently the only package needed to get going is torch.
 
 # Install
-For Linux, run install.sh. For the resulting executable to run, you need to download models first from: and place it in same folder with executable. 
+A standard cmake project. Create a build directory from root, then `cmake ..`, followed by `cmake --build .` should do the trick. 
 
-In order to run the executable you will need to download [dlib's model](http://sourceforge.net/projects/dclib/files/dlib/v18.10/shape_predictor_68_face_landmarks.dat.bz2) file and place it in the root directory. 
+OpenFaceCpp currently takes an an input an xml config file. A sample is in `src/OpenFaceConfig.xml`. You will see a couple models are needed, they can be found in the [original repo](https://github.com/cmusatyalab/openface/blob/master/models/get-models.sh). 
 
-For Windows, first cmake Lib/Unittest++, build it, then cmake the root directory. 
-
-# Todo list
-- Face detection and alignment ✔
-- Euclidean face representation ✔ 
-- Integration into Face Recognitino sample ✔
-- sync with latest OpenFace V0.2.0
+# What's next? 
+I am currently working on figuring out a way to do without the lua stuff. That would be sweet. 
