@@ -14,13 +14,13 @@ using namespace boost::process;
 
 namespace 
 {
-    void StringToVecOfStrings(const std::string str, std::vector<std::string> res)
+    void StringToVecOfStrings(const std::string& str, std::vector<std::string>& res)
     {
-        std::stringstream ss;
-        while(ss<<str)
+        std::stringstream ss(str);
+        std::string substr;
+        while(ss>> substr)
         {
-            res.push_back(ss.str());
-            ss.clear();
+            res.push_back(std::move(substr));
         }
     }
 }
@@ -33,7 +33,7 @@ TorchWrap::Executer::Executer(const std::string& modelPath, int imgDim)
     m_childSink.open(m_appToChild.sink, boost::iostreams::close_handle);
     m_childSource.open(m_childToApp.source, boost::iostreams::close_handle);
 
-    const std::string c_exec = "th_emulator openface_server.lua -model " + modelPath + " -imgDim " + std::to_string(imgDim);
+    const std::string c_exec = "th_emulator.exe openface_server.lua -model " + modelPath + " -imgDim " + std::to_string(imgDim);
     std::vector<std::string > commandWithArguments;
     StringToVecOfStrings(c_exec, commandWithArguments);
 

@@ -5,8 +5,19 @@
 #include <chrono>
 
 using namespace OpenFaceCpp;
-
 using namespace std::chrono;
+
+namespace
+{
+    void GetDoubleFromCSVLine(const std::string& line, cv::Point2d& outputPoint)
+    {
+        std::size_t commaPos = line.find(',');
+        std::string firstPart = line.substr(0, commaPos);
+        outputPoint.x = std::stod(firstPart);
+        std::string secondPart = line.substr(commaPos + 1);
+        outputPoint.y = std::stod(secondPart);
+    }
+}
 
 NativeDLib::NativeDLib(const std::string& configFileName)
 {
@@ -36,7 +47,11 @@ NativeDLib::NativeDLib(const std::string& configFileName)
 void NativeDLib::LoadMeanPoints(const std::string& faceModelFileName)
 {
     std::ifstream inputFaceModelFile(faceModelFileName);
-    CheckOpenedFile(inputFaceModelFile);
+    if (!inputFaceModelFile.good())
+    {
+        throw std::invalid_argument("Unable to process file.");;
+    }
+
     std::string line; 
     while(std::getline(inputFaceModelFile, line)) 
     {
@@ -44,26 +59,6 @@ void NativeDLib::LoadMeanPoints(const std::string& faceModelFileName)
         GetDoubleFromCSVLine(line, tempPoint);
         m_meanAveragePoints.push_back(std::move(tempPoint));
     }
-}
-
-void NativeDLib::CheckOpenedFile(const std::ifstream& inFile)
-{
-    if(!inFile.good())
-        throw std::invalid_argument("Unable to process file.");;
-}
-
-int NativeDLib::GetNumberOfPoints()
-{
-    return m_meanAveragePoints.size();
-}
-
-void NativeDLib::GetDoubleFromCSVLine(const std::string& line, cv::Point2d& outputPoint )
-{    
-    std::size_t commaPos = line.find(',');
-    std::string firstPart = line.substr(0, commaPos);
-    outputPoint.x = std::stod(firstPart);
-    std::string secondPart = line.substr(commaPos+1);
-    outputPoint.y = std::stod(secondPart);
 }
 
 void NativeDLib::PrintFaceMeanList()
@@ -109,7 +104,7 @@ dlib::rectangle NativeDLib::GetLargestFaceBoundingBox(const DlibImage& img)
 
 cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& bb)
 {
-    auto dlibImb = DlibImgtoCV(img);
+    auto dlibImb = dlib::toMat(img);
     PointList alignPoints = Align(dlibImb, bb);
     PointList meanAlignPoints = TransformPoints(m_meanAveragePoints, bb);
 
@@ -118,10 +113,10 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
         throw std::range_error("Mean align points Error. Did you laod Face Model?");
     }
 
-    int left=meanAlignPoints[0].x(), top=meanAlignPoints[0].y(), 
-        right=meanAlignPoints[0].x(), bottom=meanAlignPoints[0].y();
-    
-    for(std::size_t i=0; i<meanAlignPoints.size(); i++)
+    int left = meanAlignPoints[0].x(), top = meanAlignPoints[0].y(),
+        right = meanAlignPoints[0].x(), bottom = meanAlignPoints[0].y();
+
+    for (std::size_t i = 0; i < meanAlignPoints.size(); i++)
     {
         left = std::min<long>(left, meanAlignPoints[i].x());
         top = std::min<long>(top, meanAlignPoints[i].y());
@@ -130,26 +125,26 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
     }
 
     dlib::rectangle tightBb(left, top, right, bottom);
-    int ss[3] ={39, 42, 57}; 
+    int ss[3] = { 39, 42, 57 };
     cv::Point2f alignPointsSS[3];
-    cv::Point2f meanAlignPointsSS[3]; 
+    cv::Point2f meanAlignPointsSS[3];
 
-    for(std::size_t i=0; i<3; i++)
+    for (std::size_t i = 0; i < 3; i++)
     {
-        alignPointsSS[i].x = alignPoints[ss[i]].x(); 
+        alignPointsSS[i].x = alignPoints[ss[i]].x();
         alignPointsSS[i].y = alignPoints[ss[i]].y();
-        
+
         meanAlignPointsSS[i].x = meanAlignPoints[ss[i]].x();
         meanAlignPointsSS[i].y = meanAlignPoints[ss[i]].y();
     }
 
     cv::Mat H = cv::getAffineTransform(alignPointsSS, meanAlignPointsSS);
-    
-    cv::Mat cvImg = DlibImgtoCV(img);
-    cv::Mat warpedImg = cv::Mat::zeros( cvImg.rows, cvImg.cols, cvImg.type());
+
+    cv::Mat cvImg = dlib::toMat(img);
+    cv::Mat warpedImg = cv::Mat::zeros(cvImg.rows, cvImg.cols, cvImg.type());
     cv::warpAffine(cvImg, warpedImg, H, warpedImg.size());
     dlib::rectangle wBb = GetLargestFaceBoundingBox(warpedImg);
-    
+
     if (wBb.width() <= 0 || wBb.height() <= 0)
     {
         throw std::invalid_argument("Error with bounding box.");
@@ -157,14 +152,16 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
 
     PointList wAlignPoints = Align(warpedImg, wBb);
     PointList wMeanAlignPoints = TransformPoints(m_meanAveragePoints, wBb);
-    
-    if(warpedImg.channels()!=3)
-        throw std::invalid_argument("Image does not have 3 channels.");
-        
-    left=wAlignPoints[0].x(), top=wAlignPoints[0].y(), 
-        right=wAlignPoints[0].x(), bottom=wAlignPoints[0].y();
 
-    for(std::size_t i=0; i<wAlignPoints.size(); i++)
+    if (warpedImg.channels() != 3)
+    {
+        throw std::invalid_argument("Image does not have 3 channels.");
+    }
+
+    left = wAlignPoints[0].x(), top = wAlignPoints[0].y(),
+        right = wAlignPoints[0].x(), bottom = wAlignPoints[0].y();
+
+    for (std::size_t i = 0; i < wAlignPoints.size(); i++)
     {
         left = std::min<long>(left, wAlignPoints[i].x());
         top = std::min<long>(top, wAlignPoints[i].y());
@@ -173,15 +170,13 @@ cv::Mat NativeDLib::AlignImg(int imgDim, DlibImage &img, const dlib::rectangle& 
     }
 
     int w = warpedImg.size[0], h = warpedImg.size[1];
-    
-    if (!(0 <= left && left <= w && 0 <= right && right <= w &&
-        0 <= bottom && bottom <= h && 0 <= top && top <= h))
-    {
-        throw std::invalid_argument("Warning: Unable to align and crop to the "
-            "face's bounding box.");
-    }
 
-    cv::Rect wrect(wBb.left(), wBb.top(), wBb.width(), wBb.height());
+    cv::Rect wrect(
+        std::max<std::size_t>(wBb.left(), 0),
+        std::max<std::size_t>(wBb.top(), 0),
+        std::min<std::size_t>(wBb.width(), w),
+        std::min<std::size_t>(wBb.height(), h));
+        
     cv::rectangle(warpedImg, wrect,  cv::Scalar(0, 0, 255));
     cv::resize(warpedImg, warpedImg, cv::Size(imgDim, imgDim));
     
@@ -213,10 +208,4 @@ PointList NativeDLib::TransformPoints(const AvgPointList& points, const dlib::re
     }
 
     return res;
-}
-
-
-cv::Mat NativeDLib::DlibImgtoCV(DlibImage& img)
-{
-    return  dlib::toMat(img);
 }

@@ -1,5 +1,5 @@
-<FaceModelFileName></FaceModelFileName>
-<ShapePredictorFileName></ShapePredictorFileName>
-<ModelPath></ModelPath>
-<ImgDimension></ImgDimension>
-<RepresentationFileName></RepresentationFileName>
+<FaceModelFileName>Models/dlib/mean.csv</FaceModelFileName>
+<ShapePredictorFileName>Models/dlib/shape_predictor_68_face_landmarks.dat</ShapePredictorFileName>
+<ModelPath>Models/openface/nn4.small2.v1</ModelPath>
+<ImgDimension>96</ImgDimension>
+<RepresentationFileName>representation.txt</RepresentationFileName>

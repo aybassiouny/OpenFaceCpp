@@ -1,7 +1,6 @@
 #include "NativeDLib.h"
 #include "TorchWrap.h"
 
-#include "opencv2/opencv.hpp"
 #include <dlib/image_io.h>
 
 int main(int argc, const char *argv[] )
@@ -16,12 +15,17 @@ int main(int argc, const char *argv[] )
     OpenFaceCpp::TorchWrap tw(argv[1]);
 
     std::vector<float> result;
-    tw.ForwardImage(argv[2], result);
 
-    std::cout << "Received following output: " << std::endl;
-    for(const auto value : result)
+    try
     {
-        std::cout << value << " ";
+        tw.ForwardImage(argv[2], result);
     }
-    std::cout << std::endl;
+    catch(std::exception e)
+    {
+        std::cout << "Failed to process image .Caught exception " << e.what() << std::endl;
+        return 0;
+    }
+    
+
+    std::cout << "Received result feature vector of size : " <<result.size()<< std::endl;
 }

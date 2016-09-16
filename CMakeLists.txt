@@ -11,11 +11,6 @@ hunter_add_package(Boost COMPONENTS system regex)
 hunter_add_package(BoostProcess)
 hunter_add_package(PNG)
 
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-endif(CCACHE_FOUND)
 find_package(Boost COMPONENTS system regex REQUIRED) 
 
 find_package(BoostProcess CONFIG REQUIRED)
@@ -30,16 +25,12 @@ find_package( OpenCV REQUIRED )
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/Lib/dlib-18.18/dlib/cmake/)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Lib/tinyxml2)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Lib/easylogging)
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/Lib/tinyxml2/
-    ${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lib/tinyxml2/)
 
 link_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/Lib 
-    ${CMAKE_CURRENT_SOURCE_DIR}/Lib/unittest-cpp/builds/)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lib)
 
 SET(SOURCES
   src/NativeDLib.cpp
@@ -54,7 +45,6 @@ SET(HEADERS
 
 SET(LINK_LIBS
 	dlib 
-	UnitTest++ 
 	#lapack 
 	#blas 
 	${OpenCV_LIBS} 
@@ -65,10 +55,3 @@ SET(LINK_LIBS
 
 add_executable(OpenFaceCpp ${SOURCES} ${HEADERS})
 TARGET_LINK_LIBRARIES(OpenFaceCpp ${LINK_LIBS})
-
-#add_executable(run_tests src/run_tests.cpp src/NativeDLib.cpp src/TorchWrap.cpp )
-#TARGET_LINK_LIBRARIES(run_tests dlib UnitTest++ lapack blas ${OpenCV_LIBS} ${Boost_LIBRARIES} ${Boost_SYSTEM_LIBRARY} BoostProcess::boost_process)
-#add_executable( OpenFaceCppApp simClassification.cpp NativeDLib.cpp TorchWrap.cpp )
-#find_package(unittest-cpp REQUIRED)
-
-#TARGET_LINK_LIBRARIES(OpenFaceCpp dlib UnitTest++ ${OpenCV_LIBS})

@@ -27,15 +27,10 @@ namespace OpenFaceCpp
 
     private:
         void PrintFaceMeanList();
-        int GetNumberOfPoints();
         void LoadMeanPoints(const std::string& faceModelName);
-        void CheckOpenedFile(const std::ifstream &inFile);
 
-        void GetDoubleFromCSVLine(const std::string& line, cv::Point2d& outputPoint);
         PointList TransformPoints(const AvgPointList& points, const dlib::rectangle& faceBB);
-        PointList Align(DlibImage &img, const dlib::rectangle& faceBB);
         PointList Align(const cv::Mat& cvImg, const dlib::rectangle& faceBB);
-        cv::Mat DlibImgtoCV(DlibImage &img);
 
         DlibImage m_img;
         dlib::frontal_face_detector m_detector;
