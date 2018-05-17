@@ -19,3 +19,4 @@ representation.txt
 OpenFaceCpp
 run_tests
 /Models/openface/celeb-classifier.nn4.small2.v1.pkl
+.vs/
