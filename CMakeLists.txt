@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/ruslo/hunter/archive/v0.19.125.tar.gz"
-    SHA1 "371aef6239eff8639fe2cd94afef0f4d9f733302"
+    URL "https://github.com/ruslo/hunter/archive/v0.20.78.tar.gz"
+    SHA1 "4c50cfb0dbf489aa5b15a0df65671efa744800f8"
 )
 
 project( OpenFaceCpp )

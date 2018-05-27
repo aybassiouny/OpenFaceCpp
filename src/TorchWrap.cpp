@@ -98,7 +98,7 @@ void TorchWrap::ForwardImage(const std::string& imgPath, std::vector<float>& rep
     {
         std::string substr = imgRepStr.substr(curPos, pos - curPos);
         std::cout<<substr<<std::endl;
-        representation.emplace_back(stod(substr));
+        representation.emplace_back(stof(substr));
         curPos = pos+1; 
         pos = imgRepStr.find(",", curPos);
     }
