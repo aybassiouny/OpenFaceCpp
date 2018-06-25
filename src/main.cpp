@@ -12,17 +12,16 @@ int main(int argc, const char *argv[] )
     }
 
     
-    OpenFaceCpp::TorchWrap tw(argv[1]);
-
     std::vector<float> result;
 
     try
     {
+        OpenFaceCpp::TorchWrap tw(argv[1]);
         tw.ForwardImage(argv[2], result);
     }
     catch(std::exception e)
     {
-        std::cout << "Failed to process image .Caught exception " << e.what() << std::endl;
+        std::cout << "Failed to process image. Stopping excution."<< std::endl;
         return 0;
     }
     
