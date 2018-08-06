@@ -45,7 +45,7 @@ opt = cmd:parse(arg or {})
 print(opt)
 
 start_time = socket.gettime()*1000
-net = torch.load(opt.model)
+net = torch.load(opt.model, 'ascii')
 net:evaluate()
 end_time = socket.gettime()*1000
 elapsed_time = end_time-start_time

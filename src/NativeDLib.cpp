@@ -24,7 +24,12 @@ NativeDLib::NativeDLib(const std::string& configFileName)
     try
     {
         tinyxml2::XMLDocument doc;
-        doc.LoadFile(configFileName.c_str());
+        auto result = doc.LoadFile(configFileName.c_str());
+        if (result != tinyxml2::XMLError::XML_SUCCESS)
+        {
+            throw std::runtime_error(std::string("Unable to load config file: ") + configFileName);
+        }
+        
         std::string faceModelFileName = doc.FirstChildElement("FaceModelFileName")->GetText();
         std::string shapePredictorFileName = doc.FirstChildElement("ShapePredictorFileName")->GetText();
 
@@ -34,13 +39,20 @@ NativeDLib::NativeDLib(const std::string& configFileName)
         std::istringstream sin(dlib::get_serialized_frontal_faces());
         dlib::deserialize(m_detector, sin);
     }
-    catch (const std::invalid_argument& ia) 
+    catch (const std::invalid_argument& e) 
     {
-        std::cerr << "Invalid argument: " << ia.what() << '\n';
+        std::cerr << "Invalid argument: " << e.what() << '\n';
+        throw e;
     }
     catch (std::ifstream::failure e) 
     {
-        std::cerr << "Exception opening/reading/closing file\n";
+        std::cerr << "Exception opening/reading/closing file: " << e.what() << std::endl;
+        throw e;
+    }
+    catch (dlib::error e)
+    {
+        std::cerr << "DLib exception: " << e.info << std::endl;
+        throw e;
     }
 }
 
