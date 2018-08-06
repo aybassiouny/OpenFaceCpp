@@ -23,42 +23,111 @@ namespace
             res.push_back(std::move(substr));
         }
     }
+#if defined (BOOST_WINDOWS_API)
+
+template<typename Child>
+inline bool is_running(const Child &p, int & exit_code)
+{
+	DWORD code;
+	//single value, not needed in the winapi.
+	if (!GetExitCodeProcess(p.proc_info.hProcess, &code))
+		throw std::runtime_error("GetExitCodeProcess() failed");
+
+	if (code == 259) //windows constant STILL_ACTIVE
+		return true;
+	else
+	{
+		exit_code = code;
+		return false;
+	}
+}
+
+#elif defined(BOOST_POSIX_API)
+
+tempalte<typename Child>
+inline bool is_running(const Child&p, int & exit_code)
+{
+	int status;
+	auto ret = ::waitpid(p.pid, &status, WNOHANG | WUNTRACED);
+
+	if (ret == -1)
+	{
+		if (errno != ECHILD) //because it no child is running, than this one isn't either, obviously.
+			throw std::runtime_error("is_running error");
+
+		return false;
+	}
+	else if (ret == 0)
+		return true;
+	else //exited
+	{
+		if (WIFEXITED(status))
+			exit_code = status;
+		return false;
+	}
+}
+
+#endif
+
 }
 
 TorchWrap::Executer::Executer(const std::string& modelPath, int imgDim)
-    :
-    m_appToChild{ create_pipe() },
-    m_childToApp{ create_pipe() }
+	:
+	m_appToChild{ create_pipe() },
+	m_childToApp{ create_pipe() }
 {
-    m_childSink.open(m_appToChild.sink, boost::iostreams::close_handle);
-    m_childSource.open(m_childToApp.source, boost::iostreams::close_handle);
+	m_childSink.open(m_appToChild.sink, boost::iostreams::close_handle);
+	m_childSource.open(m_childToApp.source, boost::iostreams::close_handle);
 
-    const std::string c_exec = "th_emulator.exe openface_server.lua -model " + modelPath + " -imgDim " + std::to_string(imgDim);
-    std::vector<std::string > commandWithArguments;
-    StringToVecOfStrings(c_exec, commandWithArguments);
+	const std::string luaPath = boost::process::search_path("luajit");
+	const std::string c_exec = luaPath + " openface_server.lua -model " + modelPath + " -imgDim " + std::to_string(imgDim);
+	std::vector<std::string > commandWithArguments;
+	StringToVecOfStrings(c_exec, commandWithArguments);
 
-    std::cout << "Launching " << c_exec << std::endl;
-    m_child = std::make_unique<boost::process::child>(
-        execute(initializers::set_args(commandWithArguments),
-            initializers::bind_stdout(m_childSink),
-            initializers::bind_stdin(m_childSource)));
+	std::cout << "Launching " << c_exec << std::endl;
+	m_child = std::make_unique<boost::process::child>(
+		execute(
+			initializers::set_args(commandWithArguments),
+			initializers::on_CreateProcess_setup([this](executor &e)
+	{
+		//e.startup_info.dwFlags = STARTF_RUNFULLSCREEN; 
+		initializers::bind_stdout(m_childSink).on_CreateProcess_setup(e);
+		initializers::bind_stdin(m_childSource).on_CreateProcess_setup(e);
+		initializers::show_window(SW_NORMAL).on_CreateProcess_setup(e);
+	}),
+			initializers::on_CreateProcess_error([](executor&)
+	{
+		std::cout << GetLastError() << std::endl; })
+		));
 
-    m_appSource.open(m_appToChild.source, boost::iostreams::close_handle);
-    m_childSink.open(m_childToApp.sink, boost::iostreams::close_handle);
+	m_appSource.open(m_appToChild.source, boost::iostreams::close_handle);
+	m_childSink.open(m_childToApp.sink, boost::iostreams::close_handle);
+
+	int errorCode;
+	is_running(*m_child, errorCode);
 }
 
 bool TorchWrap::Executer::SendMsg(const std::string& msg)
 {
-    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> appOutChildIn(m_childSink);
-    appOutChildIn << msg << std::endl;
-    return true;
+	boost::iostreams::stream<boost::iostreams::file_descriptor_sink> appOutChildIn(m_childSink);
+	appOutChildIn << msg << std::endl;
+	return true;
 }
 
 bool TorchWrap::Executer::ReceiveMsg(std::string& msg)
 {
-    std::cout << "listening ..." << std::endl;
-    boost::iostreams::stream<boost::iostreams::file_descriptor_source> childOutAppin(m_appSource);
-    std::getline(childOutAppin, msg);
+	std::cout << "listening ..." << std::endl;
+	boost::iostreams::stream<boost::iostreams::file_descriptor_source> childOutAppin(m_appSource);
+	std::string result = "";
+	while (result.find("time elapsed: 0ms") == std::string::npos)
+	{
+		std::getline(childOutAppin, result);
+		if (result.find(",", 0) != std::string::npos)
+		{
+			msg = result;
+			//break;
+		}
+	}
     std::cout << "Received: " << msg << std::endl;
     return true;
 }
