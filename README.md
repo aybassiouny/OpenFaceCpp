@@ -1,7 +1,7 @@
 # OpenFaceCpp
 C++ implementation for [OpenFace](https://github.com/cmusatyalab/openface) library by CMU.
 
-Although there are many depedencies, the repo tries to minimize manual setup steps by using hunter packaging. Currently the only package that needs to be manually setup is torch.
+Although there are many dependencies, the repo tries to minimize manual setup steps by using hunter packaging. Currently the only package that needs to be manually setup is torch.
 
 # Torch estup
 We use torch to run our models. I had the following setup: 
