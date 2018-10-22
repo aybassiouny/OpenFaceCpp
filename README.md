@@ -3,7 +3,7 @@ C++ implementation for [OpenFace](https://github.com/cmusatyalab/openface) libra
 
 Although there are many dependencies, the repo tries to minimize manual setup steps by using hunter packaging. Currently the only package that needs to be manually setup is torch.
 
-# Torch estup
+# Torch setup
 We use torch to run our models. I had the following setup: 
 - Torch windows binaries from [here](https://github.com/hiili/WindowsTorch/releases/tag/64-bit_LuaJIT-2-1b2_2017-07)
 - `dpnn` required package by running [this hack](https://github.com/Element-Research/dpnn/issues/91#issuecomment-301303536) 
